@@ -52,12 +52,14 @@ class Block
 
   def transactions=(value)
     @transactions = value
+
+    return if value.nil?
     @merkle_root = merkle_tree.root.value
   end
 
   private
 
   def merkle_tree
-    MerkleTree.new(*transactions)
+    MerkleTree.new(*transactions.map(&:to_json))
   end
 end

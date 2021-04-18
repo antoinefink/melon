@@ -25,6 +25,7 @@ class Mining
     previous_block = @blockchain.previous_block
 
     transactions = gather_transactions
+    transactions << mining_reward_transcation
 
     Block.new(
       @blockchain,
@@ -42,16 +43,43 @@ class Mining
   # generating random data.
   def gather_transactions
     [
-      "Some say the world will end in fire,",
-      "Some say in ice.",
-      "From what I’ve tasted of desire",
-      "I hold with those who favor fire.",
-      "But if it had to perish twice,",
-      "I think I know enough of hate",
-      "To say that for destruction ice",
-      "Is also great",
-      "And would suffice.",
+      "Some say the world will end in fire",
+      "My random number: " + SecureRandom.random_number(10000000).to_s,
+      generate_random_transaction,
     ]
+  end
+
+  # For their work, miners are allowed to add a transaction sending one MLN to
+  # an address of their choosing.
+  # The address is hashed as a precautionary measure.
+  def mining_reward_transcation
+    {
+      "type": "mining_reward",
+      "address": Digest::SHA256.hexdigest(mining_reward_address),
+    }
+  end
+
+  # Loads or generate a private key and then deducts the public key that will
+  # be used as an address.
+  def mining_reward_address
+    FileUtils.mkdir_p(File.dirname("keys"))
+
+    group = ECDSA::Group::Secp256k1
+
+    # We first try to load an existing private key.
+    if File.file?("./keys/mining.key") == false
+      private_key = 1 + SecureRandom.random_number(group.order - 1)
+      File.write("./keys/mining.key", Base58.int_to_base58(private_key))
+    end
+
+    # The key doesn't exist, we create a new one and store it for later use.
+    private_key = File.read("./keys/mining.key").to_i
+
+    raise "Failed loading the private key" if private_key == 0
+
+    public_key = group.generator.multiply_by_scalar(private_key)
+    public_key_string = ECDSA::Format::PointOctetString.encode(public_key, compression: true)
+    Base58.binary_to_base58(public_key_string, :bitcoin)
   end
 
   class << self

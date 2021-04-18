@@ -6,6 +6,8 @@ require "digest"
 require "json"
 require "ecdsa"
 require "securerandom"
+require "fileutils"
+require "base58"
 
 require "./block"
 require "./blockchain"
