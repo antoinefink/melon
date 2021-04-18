@@ -8,10 +8,12 @@ require "ecdsa"
 require "securerandom"
 require "fileutils"
 require "base58"
+require "bigdecimal"
 
 require "./block"
 require "./blockchain"
 require "./mining"
+require "./wallet"
 
 
 # No arguments to the command means we'll show the user the list of all commands.

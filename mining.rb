@@ -43,8 +43,9 @@ class Mining
   # generating random data.
   def gather_transactions
     [
-      "Some say the world will end in fire",
-      "My random number: " + SecureRandom.random_number(10000000).to_s,
+      generate_random_transaction,
+      generate_random_transaction,
+      generate_random_transaction,
       generate_random_transaction,
     ]
   end
@@ -62,24 +63,23 @@ class Mining
   # Loads or generate a private key and then deducts the public key that will
   # be used as an address.
   def mining_reward_address
-    FileUtils.mkdir_p(File.dirname("keys"))
+    Wallet.load_or_create("mining").public_key
+  end
 
-    group = ECDSA::Group::Secp256k1
+  # This is a temporary method to make testing easier. It sends a random tiny
+  # amount of MLN from the miner's wallet to a random address.
+  #
+  # The origin address is the Base58 encoded public key. It shouldn't be hashed
+  # to allow the verification of the signature.
+  # On the other hand, the destination address is hashed to improve security.
+  #
+  def generate_random_transaction
+    mining_wallet = Wallet.load_or_create("mining")
 
-    # We first try to load an existing private key.
-    if File.file?("./keys/mining.key") == false
-      private_key = 1 + SecureRandom.random_number(group.order - 1)
-      File.write("./keys/mining.key", Base58.int_to_base58(private_key))
-    end
+    destination = Digest::SHA256.hexdigest(SecureRandom.random_number(100000000000).to_s)
+    amount = BigDecimal("0.00" + SecureRandom.random_number(10000).to_s).to_s("F")
 
-    # The key doesn't exist, we create a new one and store it for later use.
-    private_key = File.read("./keys/mining.key").to_i
-
-    raise "Failed loading the private key" if private_key == 0
-
-    public_key = group.generator.multiply_by_scalar(private_key)
-    public_key_string = ECDSA::Format::PointOctetString.encode(public_key, compression: true)
-    Base58.binary_to_base58(public_key_string, :bitcoin)
+    mining_wallet.generate_transaction(destination, amount)
   end
 
   class << self
