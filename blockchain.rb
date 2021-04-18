@@ -6,7 +6,7 @@ class Blockchain
   def previous_block
     previous_block = @db.execute("""
       SELECT
-        height, previous_block_hash, block_hash, nonce, time
+        height, previous_block_header_hash, block_header_hash, nonce, time, transactions
       FROM blocks
       ORDER BY height DESC
       LIMIT 1
@@ -19,8 +19,8 @@ class Blockchain
       self,
 
       height: previous_block[0],
-      previous_block_hash: previous_block[1],
-      block_hash: previous_block[2],
+      previous_block_header_hash: previous_block[1],
+      block_header_hash: previous_block[2],
       nonce: previous_block[3],
       time: DateTime.parse(previous_block[4]),
     )
@@ -29,14 +29,16 @@ class Blockchain
   def save_and_broadcast(block)
     @db.execute(
       """INSERT INTO blocks
-           (height, previous_block_hash, block_hash, nonce, time)
-         VALUES (?, ?, ?, ?, ?)""",
+           (height, previous_block_header_hash, block_header_hash, nonce, time, merkle_root, transactions)
+         VALUES (?, ?, ?, ?, ?, ?, ?)""",
       [
         block.height,
-        block.previous_block_hash,
-        block.block_hash,
+        block.previous_block_header_hash,
+        block.block_header_hash,
         block.nonce,
         block.time.iso8601(3),
+        block.merkle_root,
+        block.transactions.to_json,
       ]
     )
   end

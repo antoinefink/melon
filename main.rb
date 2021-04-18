@@ -1,7 +1,9 @@
 require "sqlite3"
 require "pry"
+require "merkle_tree"
 require "date"
 require "digest"
+require "json"
 
 require "./block"
 require "./blockchain"
