@@ -4,6 +4,8 @@ require "merkle_tree"
 require "date"
 require "digest"
 require "json"
+require "ecdsa"
+require "securerandom"
 
 require "./block"
 require "./blockchain"
@@ -24,9 +26,14 @@ end
 case ARGV.first.to_s.downcase
 when "node"
   raise "Not implemented just yet!"
+
 when "mine"
   puts "Starting the mining ⛏"
   Mining.start
+
+when "pry"
+  binding.pry
+
 else
   raise "Unknown command."
 end
