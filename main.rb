@@ -14,6 +14,7 @@ require "./block"
 require "./blockchain"
 require "./mining"
 require "./wallet"
+require "./transaction"
 
 
 # No arguments to the command means we'll show the user the list of all commands.

@@ -11,6 +11,8 @@ class Wallet
 
   # Signs a message as a DER string and return it encoded in Base58.
   def sign(message)
+    raise "Only strings can be signed" unless message.is_a?(String)
+
     digest = Digest::SHA256.digest(message)
     signature = nil
     while signature.nil?
@@ -24,20 +26,13 @@ class Wallet
   end
 
   def generate_transaction(destination, amount)
-    message = {
-      from: public_key,
-      destination: destination,
-      amount: amount,
-      fee: 0,
-    }
+    transaction = Transaction.new(
+      wallet: self,
+    )
 
-    signature = sign(message.sort.to_h.to_json)
+    transaction.set_cryptocurrency_message(destination, amount)
 
-    tx = {
-      id: Digest::SHA256.hexdigest(signature),
-      signature: signature,
-      message: message,
-    }
+    transaction
   end
 
   private
