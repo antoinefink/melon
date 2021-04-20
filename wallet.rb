@@ -26,7 +26,7 @@ class Wallet
   end
 
   def generate_transaction(destination, amount)
-    transaction = Transaction.new(
+    transaction = TransactionBuilder.new(
       wallet: self,
     )
 

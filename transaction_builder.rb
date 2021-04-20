@@ -1,4 +1,4 @@
-class Transaction
+class TransactionBuilder
   def initialize(wallet:, message: nil)
     @message = message
     @wallet = wallet
