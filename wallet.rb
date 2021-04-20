@@ -9,6 +9,13 @@ class Wallet
     Base58.binary_to_base58(pk_string, :bitcoin)
   end
 
+  # The destination address is just the public key hashed. It provides the
+  # advantage of having destination addresses normalized as well as icnreasing
+  # the  level of privacy.
+  def destination_address
+    Digest::SHA256.hexdigest(public_key)
+  end
+
   # Signs a message as a DER string and return it encoded in Base58.
   def sign(message)
     raise "Only strings can be signed" unless message.is_a?(String)
@@ -25,12 +32,12 @@ class Wallet
     Base58.binary_to_base58(signature_der_string)
   end
 
-  def generate_transaction(destination, amount)
+  def generate_transaction(destination, amount, fee)
     transaction = TransactionBuilder.new(
       wallet: self,
     )
 
-    transaction.set_cryptocurrency_message(destination, amount)
+    transaction.set_cryptocurrency_message(destination, amount, fee)
 
     transaction
   end

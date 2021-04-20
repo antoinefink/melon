@@ -1,4 +1,6 @@
 class TransactionBuilder
+  attr_reader :message
+
   def initialize(wallet:, message: nil)
     @message = message
     @wallet = wallet
@@ -26,12 +28,24 @@ class TransactionBuilder
     Digest::SHA256.hexdigest(@signature)
   end
 
-  def set_cryptocurrency_message(destination, amount)
+  # Sets the message to be a regularly exchange of cryptocurrency from one
+  # address to another.
+  def set_cryptocurrency_message(destination, amount, fee)
     @message = {
       from: @wallet.public_key,
       destination: destination,
       amount: amount,
-      fee: 0,
+      fee: fee,
+    }
+  end
+
+  # Sets the message to be the mining reward which will include the sum of all
+  # the fees of the transactions in the block as well as one new coin.
+  def set_mining_message(destination, fees)
+    @message = {
+      type: "mining_reward",
+      destination: destination,
+      amount: (fees + 1).to_s("F"),
     }
   end
 end

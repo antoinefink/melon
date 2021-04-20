@@ -3,6 +3,7 @@ DIFFICULTY_LEVEL = 4
 class Mining
   def initialize(blockchain)
     @blockchain = blockchain
+    @wallet = Wallet.load_or_create("mining")
   end
 
   # Blockig method that will main the blockchain until canceled.
@@ -25,7 +26,7 @@ class Mining
     previous_block = @blockchain.previous_block
 
     transactions = gather_transactions
-    transactions << mining_reward_transcation
+    transactions << mining_reward_transcation(transactions)
 
     Block.new(
       @blockchain,
@@ -53,17 +54,16 @@ class Mining
   # For their work, miners are allowed to add a transaction sending one MLN to
   # an address of their choosing.
   # The address is hashed as a precautionary measure.
-  def mining_reward_transcation
-    {
-      "type": "mining_reward",
-      "address": Digest::SHA256.hexdigest(mining_reward_address),
-    }
-  end
+  def mining_reward_transcation(transactions)
+    transaction = TransactionBuilder.new(
+      wallet: @wallet,
+    )
 
-  # Loads or generate a private key and then deducts the public key that will
-  # be used as an address.
-  def mining_reward_address
-    Wallet.load_or_create("mining").public_key
+    fees = transactions.map { |tx| BigDecimal(tx.message[:fee]) }.reduce(:+)
+
+    transaction.set_mining_message(@wallet.destination_address, fees)
+
+    transaction
   end
 
   # This is a temporary method to make testing easier. It sends a random tiny
@@ -77,14 +77,18 @@ class Mining
     mining_wallet = Wallet.load_or_create("mining")
 
     destination = Digest::SHA256.hexdigest(SecureRandom.random_number(100000000000).to_s)
-    amount = BigDecimal("0.00" + SecureRandom.random_number(10000).to_s).to_s("F")
+    amount = BigDecimal("0.00" + SecureRandom.random_number(10000).to_s)
 
-    mining_wallet.generate_transaction(destination, amount)
+    mining_wallet.generate_transaction(
+      destination,
+      amount.to_s("F"),
+      (amount / 100).to_s("F"),
+    )
   end
 
   class << self
     def start
-      Mining.new(Blockchain.start).mine
+      Mining.new(Blockchain.new).mine
     end
   end
 end
