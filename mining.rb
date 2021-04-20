@@ -15,7 +15,7 @@ class Mining
 
       @blockchain.save_and_broadcast(block)
 
-      puts "Block #{block.height} successfuly mined 🎉"
+      $logger.info "Block #{block.height} successfuly mined 🎉"
     end
   end
 
@@ -23,7 +23,7 @@ class Mining
 
   # Builds a complete block except for the nonce.
   def build_block
-    previous_block = @blockchain.previous_block
+    previous_block = @blockchain.last_block
 
     transactions = gather_transactions
     transactions << mining_reward_transcation(transactions)
@@ -88,6 +88,7 @@ class Mining
 
   class << self
     def start
+      $logger.info "Starting the mining ⛏"
       Mining.new(Blockchain.new).mine
     end
   end

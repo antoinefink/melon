@@ -1,25 +1,6 @@
 class Blockchain
-  def previous_block
-    previous_block = DB.connection.execute("""
-      SELECT
-        height, previous_block_header_hash, block_header_hash, nonce, time, transactions
-      FROM blocks
-      ORDER BY height DESC
-      LIMIT 1
-    """).first
-
-    # Not finding a block means we're mining the first one!
-    return if previous_block.nil?
-
-    Block.new(
-      self,
-
-      height: previous_block[0],
-      previous_block_header_hash: previous_block[1],
-      block_header_hash: previous_block[2],
-      nonce: previous_block[3],
-      time: DateTime.parse(previous_block[4]),
-    )
+  def last_block
+    find_block_by_height(last_block_height)
   end
 
   def save_and_broadcast(block)
@@ -40,6 +21,41 @@ class Blockchain
 
     block.transactions.each { |tx| record_transaction(block, tx) }
   end
+
+  def last_block_height
+    DB.connection.execute("""
+      SELECT height
+      FROM blocks
+      ORDER BY height DESC
+      LIMIT 1
+    """).first&.first
+  end
+
+  def find_block_by_height(height)
+    block = DB.connection.execute("""
+      SELECT
+        height, previous_block_header_hash, block_header_hash, nonce, time, transactions
+      FROM blocks
+      WHERE height = ?
+      LIMIT 1
+    """, height).first
+
+    # Not finding a block means we're mining the first one!
+    return if block.nil?
+
+    Block.new(
+      self,
+
+      height: block[0],
+      previous_block_header_hash: block[1],
+      block_header_hash: block[2],
+      nonce: block[3],
+      time: DateTime.parse(block[4]),
+      transactions: block[5] && JSON.parse(block[5]),
+    )
+  end
+
+  private
 
   # Transactions can contain anything as long as they include a fee for the
   # miner and are signed by a sender with enough funds.

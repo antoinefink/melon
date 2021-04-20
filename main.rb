@@ -9,6 +9,8 @@ require "securerandom"
 require "fileutils"
 require "base58"
 require "bigdecimal"
+require "sinatra/base"
+require "logger"
 
 require "./db"
 require "./block"
@@ -17,14 +19,16 @@ require "./mining"
 require "./wallet"
 require "./transaction_builder"
 require "./transaction"
+require "./node"
 
+$logger = Logger.new(STDOUT)
 
 # No arguments to the command means we'll show the user the list of all commands.
 if ARGV.size == 0
-  puts "Welcome to the melon factory 🍈\n\n"
-  puts "Available commands:"
-  puts "\t node — Starts a node"
-  puts "\t mine — Starts a node that also performs mining"
+  $logger.info "Welcome to the melon factory 🍈\n\n"
+  $logger.info "Available commands:"
+  $logger.info "\t node — Starts a node"
+  $logger.info "\t mine — Starts a node that also performs mining"
 
   return
 end
@@ -32,12 +36,24 @@ end
 # Run the required command.
 case ARGV.first.to_s.downcase
 when "node"
-  raise "Not implemented just yet!"
+  Node.run!
 
 when "mine"
-  puts "Starting the mining ⛏"
   DB.load_schema
-  Mining.start
+
+  # The mining process starts in a thread. This approach isn't the most elegant
+  # but it makes it possible to have the entire application run together which
+  # is easier for our purpose.
+  Thread.new do
+    begin
+      sleep 2 # A small delay wil lensure Sinatra starts successfully
+      Mining.start
+    rescue => e
+      $logger.error e
+    end
+  end
+
+  Node.run!
 
 when "pry"
   binding.pry

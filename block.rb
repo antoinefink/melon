@@ -47,7 +47,7 @@ class Block
       @nonce = nonce + 1
     end
 
-    puts "Found correct nonce: #{@block_header_hash}"
+    $logger.info "Found correct nonce: #{@block_header_hash}"
   end
 
   def transactions=(value)
@@ -55,6 +55,17 @@ class Block
 
     return if value.nil?
     @merkle_root = merkle_tree.root.value
+  end
+
+  def to_json(options = {})
+    {
+    height: @height,
+    previous_block_header_hash: @previous_block_header_hash,
+    block_header_hash: @block_header_hash,
+    nonce: @nonce,
+    time: @time,
+    transactions: @transactions,
+    }.to_json
   end
 
   private
