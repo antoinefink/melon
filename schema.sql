@@ -9,3 +9,15 @@ CREATE TABLE blocks (
 
   PRIMARY KEY(height)
 );
+
+CREATE TABLE transactions (
+  id TEXT NOT NULL,
+  from_address TEXT,
+  destination_address TEXT,
+  amount TEXT NOT NULL,
+  fee TEXT,
+
+  block_height TEXT REFERENCES blocks(height) ON DELETE CASCADE,
+
+  PRIMARY KEY(id)
+);

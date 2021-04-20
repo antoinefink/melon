@@ -1,10 +1,6 @@
 class Blockchain
-  def initialize(db)
-    @db = db
-  end
-
   def previous_block
-    previous_block = @db.execute("""
+    previous_block = DB.connection.execute("""
       SELECT
         height, previous_block_header_hash, block_header_hash, nonce, time, transactions
       FROM blocks
@@ -27,7 +23,7 @@ class Blockchain
   end
 
   def save_and_broadcast(block)
-    @db.execute(
+    DB.connection.execute(
       """INSERT INTO blocks
            (height, previous_block_header_hash, block_header_hash, nonce, time, merkle_root, transactions)
          VALUES (?, ?, ?, ?, ?, ?, ?)""",
@@ -41,28 +37,26 @@ class Blockchain
         block.transactions.to_json,
       ]
     )
+
+    block.transactions.each { |tx| record_transaction(block, tx) }
   end
 
-  class << self
-    # Start the blockchain by loading the DB.
-    def start
-      load_db
-
-      Blockchain.new(@db)
-    end
-
-    private
-
-    def load_db
-      @db = SQLite3::Database.new "melon.db"
-
-      rows = @db.execute(%(SELECT name FROM sqlite_master WHERE type='table' AND name='blocks';))
-
-      # No rows means the table containing blocks doesn't exist.
-      return if rows.size > 0
-
-      @db.execute(File.open("schema.sql").read)
-    end
+  # Transactions can contain anything as long as they include a fee for the
+  # miner and are signed by a sender with enough funds.
+  #
+  # We are going to record:
+  # 1. The coin reward to the miner for having mined the block (the coinbase).
+  # 2. If available, the transfer of fees to the miner as defined in the transactions.
+  # 3. If available, the transfer of funds from the sender to the recipient.
+  def record_transaction(block, transaction)
+    Transaction.new(
+      id: transaction.id,
+      from_address: transaction.message[:from],
+      destination_address: transaction.message[:destination],
+      amount: transaction.message[:amount],
+      fee: transaction.message[:fee],
+      block_height: block.height,
+    ).insert
   end
 end
 

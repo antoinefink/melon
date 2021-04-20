@@ -10,11 +10,13 @@ require "fileutils"
 require "base58"
 require "bigdecimal"
 
+require "./db"
 require "./block"
 require "./blockchain"
 require "./mining"
 require "./wallet"
 require "./transaction_builder"
+require "./transaction"
 
 
 # No arguments to the command means we'll show the user the list of all commands.
@@ -34,6 +36,7 @@ when "node"
 
 when "mine"
   puts "Starting the mining ⛏"
+  DB.load_schema
   Mining.start
 
 when "pry"
