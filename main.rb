@@ -11,6 +11,7 @@ require "base58"
 require "bigdecimal"
 require "sinatra/base"
 require "logger"
+require "httparty"
 
 require "./db"
 require "./block"
@@ -36,10 +37,27 @@ end
 # Run the required command.
 case ARGV.first.to_s.downcase
 when "node"
+  $db = DB.new
+
+  blockchain = Blockchain.new
+
+  Thread.new do
+    begin
+      loop do
+        sleep 5
+        blockchain.find_higher_blocks_on_the_network
+      end
+    rescue => e
+      $logger.error e
+    end
+  end
+
   Node.run!
 
+
+
 when "mine"
-  DB.load_schema
+  $db = DB.new
 
   # The mining process starts in a thread. This approach isn't the most elegant
   # but it makes it possible to have the entire application run together which
@@ -56,6 +74,9 @@ when "mine"
   Node.run!
 
 when "pry"
+  $db = DB.new
+  blockchain = Blockchain.new
+
   binding.pry
 
 else

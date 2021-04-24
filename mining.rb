@@ -1,5 +1,3 @@
-DIFFICULTY_LEVEL = 4
-
 class Mining
   def initialize(blockchain)
     @blockchain = blockchain
@@ -11,9 +9,15 @@ class Mining
     loop do
       block = build_block
 
-      block.find_nonce
+      time_limit = 10 # Seconds
+      loop do
+        @blockchain.find_higher_blocks_on_the_network
 
-      @blockchain.save_and_broadcast(block)
+        block.find_nonce(10)
+        break unless block.nonce.nil?
+      end
+
+      @blockchain.save_block(block)
 
       $logger.info "Block #{block.height} successfuly mined 🎉"
     end
@@ -25,7 +29,9 @@ class Mining
   def build_block
     previous_block = @blockchain.last_block
 
-    transactions = gather_transactions
+    # We always include a mining reward. On the genesis block, that's the only
+    # transaction to be present.
+    transactions = previous_block.nil? ? [] : gather_transactions
     transactions << mining_reward_transcation(transactions)
 
     Block.new(
@@ -34,7 +40,7 @@ class Mining
       time: Time.now.utc,
       previous_block_header_hash: previous_block&.block_header_hash,
       height: previous_block&.height.to_i + 1,
-      transactions: transactions,
+      transactions: transactions.map(&:to_h),
     )
   end
 
@@ -59,7 +65,7 @@ class Mining
       wallet: @wallet,
     )
 
-    fees = transactions.map { |tx| BigDecimal(tx.message[:fee]) }.reduce(:+)
+    fees = transactions.map { |tx| BigDecimal(tx.message["fee"]) }.reduce(:+)
 
     transaction.set_mining_message(@wallet.destination_address, fees)
 

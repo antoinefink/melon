@@ -17,8 +17,9 @@ class Block
 
   def block_header
     [
+      @height,
       @previous_block_header_hash,
-      @time,
+      @time.utc.to_s,
       @merkle_root,
       @nonce,
     ].join("|")
@@ -33,13 +34,20 @@ class Block
   end
 
   # Finds the nonce matching the current difficulty level of the Blockchain.
-  def find_nonce
+  # The parameters is used to provide a ime limit to the search for the nonce.
+  def find_nonce(seconds)
+    time_limit = Time.now + seconds
     @nonce = 0
 
     loop do
+      if Time.now > time_limit
+        @nonce = nil
+        return
+      end
+
       @block_header_hash = compute_block_header_hash
 
-      if @block_header_hash[0, DIFFICULTY_LEVEL] == "0" * DIFFICULTY_LEVEL
+      if @block_header_hash[0, Blockchain::DIFFICULTY_LEVEL] == "0" * Blockchain::DIFFICULTY_LEVEL
         @block_header_hash = block_header_hash
         break
       end
@@ -59,18 +67,33 @@ class Block
 
   def to_json(options = {})
     {
-    height: @height,
-    previous_block_header_hash: @previous_block_header_hash,
-    block_header_hash: @block_header_hash,
-    nonce: @nonce,
-    time: @time,
-    transactions: @transactions,
+      height: @height,
+      previous_block_header_hash: @previous_block_header_hash,
+      block_header_hash: @block_header_hash,
+      nonce: @nonce,
+      time: @time,
+      transactions: @transactions,
     }.to_json
   end
 
   private
 
   def merkle_tree
-    MerkleTree.new(*transactions.map(&:to_json))
+    MerkleTree.new(*transactions.map(&:to_json).sort { |a, b| a["id"] <=> b["id"] })
+  end
+
+  class << self
+    def initialize_from_json(blockchain, block)
+      Block.new(
+        blockchain,
+        height: block["height"],
+        time: Time.parse(block["time"]),
+        previous_block_header_hash: block["previous_block_header_hash"],
+        block_header_hash: block["block_header_hash"],
+        transactions: block["transactions"],
+        nonce: block["nonce"],
+        merkle_root: block["merkle_root"],
+        )
+    end
   end
 end

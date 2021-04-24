@@ -1,18 +1,16 @@
 class DB
-  @@connection = SQLite3::Database.new "melon.db"
+  attr_reader :connection
 
-  def self.connection
-    @@connection
-  end
+  def initialize
+    @connection = SQLite3::Database.new("#{ENV["MLN_DB_NAME"] || "melon"}.db")
 
-  def self.load_schema
-    rows = DB.connection.execute(%(SELECT name FROM sqlite_master WHERE type='table' AND name='blocks';))
+    rows = @connection.execute(%(SELECT name FROM sqlite_master WHERE type='table' AND name='blocks';))
 
     # No rows means the table containing blocks doesn't exist.
     return if rows.size > 0
 
     File.open("schema.sql").read.split(";").each do |statement|
-      DB.connection.execute(statement)
+      @connection.execute(statement)
     end
   end
 end

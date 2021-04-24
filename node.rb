@@ -1,4 +1,7 @@
 class Node < Sinatra::Base
+  set :logger, $logger
+  set :port, ENV["MLN_PORT"] || 4567
+
   @@blockchain = Blockchain.new
 
   get "/" do

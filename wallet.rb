@@ -6,7 +6,7 @@ class Wallet
   def public_key
     pk = group.generator.multiply_by_scalar(@private_key)
     pk_string = ECDSA::Format::PointOctetString.encode(pk, compression: true)
-    Base58.binary_to_base58(pk_string, :bitcoin)
+    Base58.binary_to_base58(pk_string)
   end
 
   # The destination address is just the public key hashed. It provides the
@@ -38,6 +38,7 @@ class Wallet
     )
 
     transaction.set_cryptocurrency_message(destination, amount, fee)
+    transaction.sign!
 
     transaction
   end
