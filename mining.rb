@@ -13,13 +13,12 @@ class Mining
       loop do
         @blockchain.find_higher_blocks_on_the_network
 
-        block.find_nonce(10)
-        break unless block.nonce.nil?
+        break if block.find_nonce(10)
       end
 
       @blockchain.save_block(block)
 
-      $logger.info "Block #{block.height} successfuly mined 🎉"
+      $logger.info "Block #{block.height} successfuly mined with #{block.transactions.size} transaction 🎉"
     end
   end
 

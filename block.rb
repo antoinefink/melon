@@ -37,12 +37,11 @@ class Block
   # The parameters is used to provide a ime limit to the search for the nonce.
   def find_nonce(seconds)
     time_limit = Time.now + seconds
-    @nonce = 0
+    @nonce = 0 if @nonce.nil?
 
     loop do
       if Time.now > time_limit
-        @nonce = nil
-        return
+        return false
       end
 
       @block_header_hash = compute_block_header_hash
@@ -56,6 +55,8 @@ class Block
     end
 
     $logger.info "Found correct nonce: #{@block_header_hash}"
+
+    return true
   end
 
   def transactions=(value)
