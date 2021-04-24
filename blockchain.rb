@@ -6,7 +6,7 @@ class Blockchain
   # number of peers we connect to.
   MAX_NUMBER_OF_PEERS = 50
 
-  DIFFICULTY_LEVEL = 4
+  DIFFICULTY_LEVEL = 5
 
   def initialize
     @peers = ENV["MLN_PEERS"].to_s.split(",")
