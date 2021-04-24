@@ -21,6 +21,7 @@ require "./wallet"
 require "./transaction_builder"
 require "./wallet_transfer"
 require "./node"
+require "./pending_transaction"
 
 $logger = Logger.new(STDOUT)
 
@@ -30,6 +31,8 @@ if ARGV.size == 0
   $logger.info "Available commands:"
   $logger.info "\t node — Starts a node"
   $logger.info "\t mine — Starts a node that also performs mining"
+  $logger.info "\t pry — A runtime developer console for debugging"
+  $logger.info "\t submit_random_transactions — Submits a transaction to all peers every second"
 
   return
 end
@@ -78,6 +81,36 @@ when "pry"
   blockchain = Blockchain.new
 
   binding.pry
+
+when "submit_random_transactions"
+  mining_wallet = Wallet.load_or_create("mining")
+
+  loop do
+    # The destination address is random as we're only testing.
+    destination = Digest::SHA256.hexdigest(SecureRandom.random_number(100000000000).to_s)
+    amount = BigDecimal("0.00" + SecureRandom.random_number(10000).to_s)
+
+    transaction = mining_wallet.generate_transaction(
+      destination,
+      amount.to_s("F"),
+      (amount / 100).to_s("F"),
+    )
+
+    ENV["MLN_PEERS"].to_s.split(",").each do |peer|
+      response = HTTParty.post("http://#{peer}/transactions/submit",
+        body: transaction.to_json,
+        headers: { "Content-Type": "application/json" },
+      )
+
+      if response.code != 200
+        $logger.error("Failed submitting transaction: #{response.message}")
+      else
+        $logger.info("Submitted one transaction to #{peer}")
+      end
+    end
+
+    sleep 1
+  end
 
 else
   raise "Unknown command."

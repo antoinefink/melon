@@ -21,3 +21,10 @@ CREATE TABLE wallet_transfers (
 
   PRIMARY KEY(id)
 );
+
+CREATE TABLE pending_transactions (
+  id TEXT NOT NULL,
+  payload TEXT NOT NULL,
+
+  PRIMARY KEY(id)
+);

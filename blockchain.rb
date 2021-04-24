@@ -33,6 +33,8 @@ class Blockchain
     )
 
     block.transactions.each { |tx| record_wallet_transfer(block, tx) }
+
+    PendingTransaction.delete_by_id(block.transactions.map { |t| t["id"] })
   end
 
   def last_block_height
@@ -194,6 +196,43 @@ class Blockchain
     end
   end
 
+  # Validate all the cryptographical components of the transactions.
+  # Therefore it doesn't include ensuring the wallet has the required funds to
+  # make the transaction.
+  def valid_cryptography?(transaction)
+    # The signature of the message needs to be valid and come from the sender.
+    if transaction["id"] != Digest::SHA256.hexdigest(transaction["signature"])
+      $logger.warn("Transaction ID isn't the SHA256 of the signature")
+      return false
+    end
+
+    # The signature should be valid.
+    if transaction["message"]["type"] != "mining_reward"
+      public_key = ECDSA::Format::PointOctetString.decode(
+        Base58.base58_to_binary(transaction["message"]["from"]),
+        ECDSA::Group::Secp256k1,
+      )
+
+      digest = Digest::SHA256.digest(transaction["message"].sort.to_h.to_json)
+
+      signature = ECDSA::Format::SignatureDerString.decode(
+        Base58.base58_to_binary(transaction["signature"])
+      )
+
+      if ECDSA.valid_signature?(public_key, digest, signature) == false
+        $logger.warn("Transaction signature is invalid")
+        return false
+      end
+    end
+  end
+
+  def address_has_enough_funds?(message_transaction)
+    from = Digest::SHA256.hexdigest(message_transaction["from"])
+    total = BigDecimal(message_transaction["amount"]) + BigDecimal(message_transaction["fee"])
+
+    address_balance(from) > total
+  end
+
   private
 
   # We record the changes of wallet balances using the transaction messages.
@@ -231,13 +270,6 @@ class Blockchain
     $logger.info("Finished validating and applying block ##{block.height}")
   end
 
-  def address_has_enough_funds?(message_transaction)
-    from = Digest::SHA256.hexdigest(message_transaction["from"])
-    total = BigDecimal(message_transaction["amount"]) + BigDecimal(message_transaction["fee"])
-
-    address_balance(from) > total
-  end
-
   # Returns the balance of the SHA256 hashed address.
   # This implementation goes throught all previous transactions of the block
   # chain to calculate the balance. This is of course very inefficient but
@@ -254,36 +286,6 @@ class Blockchain
     ).flatten.map { |a| BigDecimal(a) }.reduce(&:+)
 
     total.to_i - spent_including_fees.to_i
-  end
-
-  # Validate all the cryptographical components of the transactions.
-  # Therefore it doesn't include ensuring the wallet has the required funds to
-  # make the transaction.
-  def valid_cryptography?(transaction)
-    # The signature of the message needs to be valid and come from the sender.
-    if transaction["id"] != Digest::SHA256.hexdigest(transaction["signature"])
-      $logger.warn("Transaction ID isn't the SHA256 of the signature")
-      return false
-    end
-
-    # The signature should be valid.
-    if transaction["message"]["type"] != "mining_reward"
-      public_key = ECDSA::Format::PointOctetString.decode(
-        Base58.base58_to_binary(transaction["message"]["from"]),
-        ECDSA::Group::Secp256k1,
-      )
-
-      digest = Digest::SHA256.digest(transaction["message"].sort.to_h.to_json)
-
-      signature = ECDSA::Format::SignatureDerString.decode(
-        Base58.base58_to_binary(transaction["signature"])
-      )
-
-      if ECDSA.valid_signature?(public_key, digest, signature) == false
-        $logger.warn("Transaction signature is invalid")
-        return false
-      end
-    end
   end
 end
 
