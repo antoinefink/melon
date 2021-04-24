@@ -32,7 +32,7 @@ class Blockchain
       ]
     )
 
-    block.transactions.each { |tx| record_transaction(block, tx) }
+    block.transactions.each { |tx| record_wallet_transfer(block, tx) }
   end
 
   def last_block_height
@@ -145,13 +145,13 @@ class Blockchain
 
     # 3. Transactions: Wallets should only spend fund they own.
     new_block.transactions.each do |transaction|
-      if Transaction.find(transaction["id"]).nil? == false
+      if WalletTransfer.find(transaction["id"]).nil? == false
         raise "A transaction with the same ID already exists on the blockchain"
       end
 
       case transaction["message"]["type"]
       when "funds_transfer"
-        if Transaction.valid_cryptography?(transaction) == false
+        if valid_cryptography?(transaction) == false
           raise "Cryptography of the transaction is invalid"
         end
 
@@ -196,6 +196,7 @@ class Blockchain
 
   private
 
+  # We record the changes of wallet balances using the transaction messages.
   # Transactions can contain anything as long as they include a fee for the
   # miner and are signed by a sender with enough funds.
   #
@@ -205,8 +206,8 @@ class Blockchain
   # 1. The coin reward to the miner for having mined the block (the coinbase).
   # 2. If available, the transfer of fees to the miner as defined in the transactions.
   # 3. If available, the transfer of funds from the sender to the recipient.
-  def record_transaction(block, transaction)
-    Transaction.new(
+  def record_wallet_transfer(block, transaction)
+    WalletTransfer.new(
       id: transaction["id"],
       from_address: transaction["message"]["from"] && Digest::SHA256.hexdigest(transaction["message"]["from"]),
       destination_address: transaction["message"]["destination"],
@@ -220,7 +221,7 @@ class Blockchain
   # provided are deleted.
   def reverse_blocks_and_transactions_until(height)
     $db.connection.execute("DELETE FROM blocks WHERE height > ?", height)
-    $db.connection.execute("DELETE FROM transactions WHERE block_height > ?", height)
+    $db.connection.execute("DELETE FROM wallet_transfers WHERE block_height > ?", height)
   end
 
   def validate_and_apply_block(block)
@@ -243,16 +244,46 @@ class Blockchain
   # sufficient for our purpose.
   def address_balance(address)
     total = $db.connection.execute(
-      "SELECT amount FROM transactions WHERE destination_address = ?",
+      "SELECT amount FROM wallet_transfers WHERE destination_address = ?",
       address,
     ).flatten.map { |a| BigDecimal(a) }.reduce(&:+)
 
     spent_including_fees = $db.connection.execute(
-      "SELECT fee, amount FROM transactions WHERE from_address = ?",
+      "SELECT fee, amount FROM wallet_transfers WHERE from_address = ?",
       address,
     ).flatten.map { |a| BigDecimal(a) }.reduce(&:+)
 
     total.to_i - spent_including_fees.to_i
+  end
+
+  # Validate all the cryptographical components of the transactions.
+  # Therefore it doesn't include ensuring the wallet has the required funds to
+  # make the transaction.
+  def valid_cryptography?(transaction)
+    # The signature of the message needs to be valid and come from the sender.
+    if transaction["id"] != Digest::SHA256.hexdigest(transaction["signature"])
+      $logger.warn("Transaction ID isn't the SHA256 of the signature")
+      return false
+    end
+
+    # The signature should be valid.
+    if transaction["message"]["type"] != "mining_reward"
+      public_key = ECDSA::Format::PointOctetString.decode(
+        Base58.base58_to_binary(transaction["message"]["from"]),
+        ECDSA::Group::Secp256k1,
+      )
+
+      digest = Digest::SHA256.digest(transaction["message"].sort.to_h.to_json)
+
+      signature = ECDSA::Format::SignatureDerString.decode(
+        Base58.base58_to_binary(transaction["signature"])
+      )
+
+      if ECDSA.valid_signature?(public_key, digest, signature) == false
+        $logger.warn("Transaction signature is invalid")
+        return false
+      end
+    end
   end
 end
 

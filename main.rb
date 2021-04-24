@@ -19,7 +19,7 @@ require "./blockchain"
 require "./mining"
 require "./wallet"
 require "./transaction_builder"
-require "./transaction"
+require "./wallet_transfer"
 require "./node"
 
 $logger = Logger.new(STDOUT)

@@ -10,7 +10,7 @@ CREATE TABLE blocks (
   PRIMARY KEY(height)
 );
 
-CREATE TABLE transactions (
+CREATE TABLE wallet_transfers (
   id TEXT NOT NULL,
   from_address TEXT,
   destination_address TEXT,
