@@ -30,7 +30,7 @@ class Mining
 
     # We always include a mining reward. On the genesis block, that's the only
     # transaction to be present.
-    transactions = previous_block.nil? ? [] : PendingTransaction.first(100) || []
+    transactions = previous_block.nil? ? [] : gather_transactions
     transactions << mining_reward_transcation(transactions)
 
     Block.new(
@@ -56,6 +56,18 @@ class Mining
     transaction.set_mining_message(@wallet.destination_address, fees)
 
     transaction
+  end
+
+  def gather_transactions
+    transactions = PendingTransaction.first(100).to_a
+
+    # Blocks might have been mined since the transaction was submited. We
+    # therefore ensure the wallet still has the necessary funds and that the
+    # ID of the transaction isn't already in the blockchain.
+    transactions.reject do |transaction|
+      @blockchain.address_has_enough_funds?(transaction["message"]) == false ||
+      WalletTransfer.find(transaction["id"]).nil? == false
+    end
   end
 
   class << self
